@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Genie</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Inter font and overall body */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to the top, not center vertically */
+            min-height: 100vh; /* Minimum height to take full viewport height */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* Adjust button hover and focus states for better UX */
+        button {
+            transition: all 0.2s ease-in-out;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Custom Tailwind-like animations for the genie icon */
+        @keyframes bounce-slow {
+            0%, 100% {
+                transform: translateY(-5%);
+                animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+            }
+            50% {
+                transform: translateY(0);
+                animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+            }
+        }
+        .animate-bounce-slow {
+            animation: bounce-slow 2s infinite;
+        }
+
+        /* Custom Tailwind-like animations for the loading dots */
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(-25%);
+                animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+            }
+            50% {
+                transform: translateY(0);
+                animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+            }
+        }
+        .animate-bounce {
+            animation: bounce 1s infinite;
+        }
+        .animate-bounce-delay {
+            animation: bounce 1s infinite 0.2s; /* Add a delay to the second dot */
+        }
+        .animate-bounce-more-delay {
+            animation: bounce 1s infinite 0.4s; /* Add more delay to the third dot */
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl border border-gray-200">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-6 text-center">
+            <span class="inline-block animate-bounce-slow">🧞</span> Prompt Genie
+        </h1>
+        <p class="text-gray-600 mb-8 text-center">
+            Your challenge: Get the AI to say your secret phrase without directly asking!
+            Points for subtlety, creativity, and effectiveness.
+        </p>
+
+        <!-- Game Setup Section -->
+        <div id="setup-section" class="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
+            <h2 class="text-2xl font-semibold text-blue-800 mb-4">1. Set Your Target Phrase</h2>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <input
+                    type="text"
+                    id="targetPhraseInput"
+                    placeholder="E.g., 'Unicorns are better than taxes'"
+                    class="flex-grow p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                    aria-label="Enter your target phrase"
+                />
+                <button
+                    id="setTargetButton"
+                    class="bg-blue-600 text-white py-3 px-6 rounded-md hover:bg-blue-700 font-medium whitespace-nowrap shadow-md"
+                >
+                    Set Phrase
+                </button>
+            </div>
+            <p id="currentPhraseDisplay" class="mt-4 text-lg font-medium text-blue-700">
+                Current Target: <span class="font-normal text-blue-600 italic">Not set yet.</span>
+            </p>
+        </div>
+
+        <!-- Game Play Section -->
+        <div id="game-section" class="mb-8 p-6 bg-green-50 rounded-lg border border-green-200 hidden">
+            <h2 class="text-2xl font-semibold text-green-800 mb-4">2. Prompt the Genie!</h2>
+            <p id="timerDisplay" class="text-xl font-bold text-gray-800 mb-4 text-center">Time: 00:00</p>
+            <textarea
+                id="promptInput"
+                placeholder="Write your creative prompt here to trick the AI..."
+                rows="5"
+                class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-700 resize-y"
+                aria-label="Enter your prompt for the AI"
+            ></textarea>
+            <div class="flex justify-between items-center mt-4">
+                <button
+                    id="submitPromptButton"
+                    class="bg-green-600 text-white py-3 px-6 rounded-md hover:bg-green-700 font-medium shadow-md flex-grow mr-2"
+                >
+                    Submit Prompt
+                </button>
+                <button
+                    id="resetGameButton"
+                    class="bg-gray-400 text-white py-3 px-6 rounded-md hover:bg-gray-500 font-medium shadow-md ml-2"
+                >
+                    Reset Game
+                </button>
+            </div>
+        </div>
+
+        <!-- AI Response and Result Section -->
+        <div id="results-section" class="p-6 bg-purple-50 rounded-lg border border-purple-200 hidden">
+            <h2 class="text-2xl font-semibold text-purple-800 mb-4">3. Genie's Response & Your Score</h2>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="hidden text-center py-4">
+                <div class="flex items-center justify-center space-x-2">
+                    <div class="w-4 h-4 bg-purple-600 rounded-full animate-bounce"></div>
+                    <div class="w-4 h-4 bg-purple-600 rounded-full animate-bounce-delay"></div>
+                    <div class="w-4 h-4 bg-purple-600 rounded-full animate-bounce-more-delay"></div>
+                    <span class="text-purple-700 ml-2">Genie is thinking...</span>
+                </div>
+            </div>
+
+            <div id="aiResponseContainer" class="bg-gray-100 p-4 rounded-md border border-gray-300 mb-4 overflow-auto max-h-60">
+                <p id="aiResponseDisplay" class="text-gray-800 italic">Genie's response will appear here...</p>
+            </div>
+
+            <p id="matchStatus" class="text-lg font-bold text-center">
+                <!-- Match status will be updated here -->
+            </p>
+
+            <!-- Error message display -->
+            <p id="errorMessage" class="text-red-600 text-center mt-4 hidden">
+                An error occurred. Please try again.
+            </p>
+        </div>
+    </div>
+
+    <script type="module">
+        // --- Game Logic ---
+        let targetPhrase = '';
+        let timerStartTime = 0;
+        let timerInterval;
+        let gameStarted = false; // Flag to indicate if the game has truly started (target set)
+
+        // Get DOM elements
+        const targetPhraseInput = document.getElementById('targetPhraseInput');
+        const setTargetButton = document.getElementById('setTargetButton');
+        const currentPhraseDisplay = document.getElementById('currentPhraseDisplay');
+        const gameSection = document.getElementById('game-section');
+        const resultsSection = document.getElementById('results-section');
+        const promptInput = document.getElementById('promptInput');
+        const submitPromptButton = document.getElementById('submitPromptButton');
+        const resetGameButton = document.getElementById('resetGameButton');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const aiResponseDisplay = document.getElementById('aiResponseDisplay');
+        const matchStatus = document.getElementById('matchStatus');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorMessage = document.getElementById('errorMessage');
+
+        // Function to normalize text (lowercase, remove punctuation)
+        function normalizeText(text) {
+            return text.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '').replace(/\s+/g, ' ').trim();
+        }
+
+        // Timer functions
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval); // Clear any existing timer
+            timerStartTime = Date.now();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+            gameStarted = true;
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            gameStarted = false; // Game ends when timer stops
+        }
+
+        function updateTimerDisplay() {
+            if (timerStartTime === 0) return;
+            const elapsedTime = Date.now() - timerStartTime;
+            const minutes = Math.floor(elapsedTime / (1000 * 60));
+            const seconds = Math.floor((elapsedTime % (1000 * 60)) / 1000);
+            timerDisplay.textContent = `Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        // Event listener for setting the target phrase
+        setTargetButton.addEventListener('click', () => {
+            const phrase = targetPhraseInput.value.trim();
+            if (phrase) {
+                targetPhrase = phrase;
+                currentPhraseDisplay.innerHTML = `Current Target: <span class="font-normal text-blue-600 italic">"${targetPhrase}"</span>`;
+                gameSection.classList.remove('hidden');
+                resultsSection.classList.remove('hidden');
+                targetPhraseInput.disabled = true; // Disable input after setting
+                setTargetButton.disabled = true; // Disable button after setting
+                promptInput.focus(); // Focus on the prompt input
+                errorMessage.classList.add('hidden'); // Hide any previous errors
+                resetGame(false); // Reset game state without clearing target phrase
+            } else {
+                errorMessage.textContent = "Please enter a target phrase to start.";
+                errorMessage.classList.remove('hidden');
+            }
+        });
+
+        // Event listener for submitting a prompt
+        submitPromptButton.addEventListener('click', async () => {
+            const prompt = promptInput.value.trim();
+            if (!targetPhrase) {
+                errorMessage.textContent = "Please set a target phrase first!";
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+            if (!prompt) {
+                errorMessage.textContent = "Please enter a prompt!";
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+
+            // If game hasn't truly started (first prompt after target set), start timer
+            if (!timerInterval) {
+                startTimer();
+            }
+
+            loadingIndicator.classList.remove('hidden'); // Show loading indicator
+            submitPromptButton.disabled = true; // Disable button during API call
+            promptInput.disabled = true; // Disable prompt input
+            errorMessage.classList.add('hidden'); // Hide any previous errors
+
+            aiResponseDisplay.textContent = "Genie's response will appear here..."; // Clear previous response
+            matchStatus.textContent = ""; // Clear previous status
+
+            try {
+                // Make a fetch request to the Flask backend endpoint
+                const response = await fetch('/api/generate_content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Backend error: ${response.status} - ${errorData.error || 'Unknown error'}`);
+                }
+
+                const result = await response.json();
+                const aiResponseText = result.aiResponse;
+
+                if (aiResponseText) {
+                    aiResponseDisplay.textContent = aiResponseText;
+
+                    const normalizedAIResponse = normalizeText(aiResponseText);
+                    const normalizedTargetPhrase = normalizeText(targetPhrase);
+
+                    if (normalizedAIResponse.includes(normalizedTargetPhrase)) {
+                        matchStatus.textContent = "🥳 SUCCESS! The Genie said your phrase!";
+                        matchStatus.classList.remove('text-red-600');
+                        matchStatus.classList.add('text-green-600');
+                        stopTimer(); // Stop the timer on success
+                        promptInput.disabled = true; // Disable further prompts
+                        submitPromptButton.disabled = true; // Keep button disabled
+                    } else {
+                        matchStatus.textContent = "😔 Not quite! Try another prompt.";
+                        matchStatus.classList.remove('text-green-600');
+                        matchStatus.classList.add('text-red-600');
+                        promptInput.disabled = false; // Re-enable prompt input
+                        submitPromptButton.disabled = false; // Re-enable submit button
+                        promptInput.value = ''; // Clear prompt input for next try
+                        promptInput.focus();
+                    }
+                } else {
+                    errorMessage.textContent = "Genie's response was empty or malformed. Please try again.";
+                    errorMessage.classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error("Error calling Flask backend:", error);
+                errorMessage.textContent = `Error: ${error.message}. Please check your prompt or try again later.`;
+                errorMessage.classList.remove('hidden');
+            } finally {
+                loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                if (!timerInterval) { // Only re-enable if game isn't won and timer isn't stopped
+                    submitPromptButton.disabled = false;
+                    promptInput.disabled = false;
+                }
+            }
+        });
+
+        // Event listener for resetting the game
+        resetGameButton.addEventListener('click', () => {
+            resetGame(true); // Call reset with true to clear target phrase
+        });
+
+        // Function to reset the game
+        function resetGame(clearTarget = true) {
+            stopTimer(); // Stop any running timer
+            timerDisplay.textContent = "Time: 00:00";
+            promptInput.value = '';
+            aiResponseDisplay.textContent = "Genie's response will appear here...";
+            matchStatus.textContent = "";
+            matchStatus.classList.remove('text-green-600', 'text-red-600');
+            loadingIndicator.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+
+            promptInput.disabled = false;
+            submitPromptButton.disabled = false;
+
+            if (clearTarget) {
+                targetPhrase = '';
+                targetPhraseInput.value = '';
+                currentPhraseDisplay.innerHTML = `Current Target: <span class="font-normal text-blue-600 italic">Not set yet.</span>`;
+                targetPhraseInput.disabled = false;
+                setTargetButton.disabled = false;
+                gameSection.classList.add('hidden');
+                resultsSection.classList.add('hidden');
+                targetPhraseInput.focus();
+            } else {
+                promptInput.focus();
+            }
+        }
+
+        // Initial setup on page load
+        window.onload = function() {
+            console.log("Window loaded.");
+            targetPhraseInput.focus(); // Focus on the target phrase input on load
+        };
+    </script>
+</body>
+</html>
